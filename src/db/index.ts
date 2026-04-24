@@ -3,6 +3,15 @@ import type { Card, ComboMemo, Deck, Relic, Run, StoredImage } from '../types';
 import { SEED_CARDS } from '../data/cards';
 import { SEED_RELICS } from '../data/relics';
 
+export interface BackupRecord {
+  id?: number;
+  createdAt: number;
+  kind: 'auto' | 'manual';
+  label?: string;
+  bytes: number;
+  json: string;
+}
+
 export class Sts2Db extends Dexie {
   cards!: Table<Card, string>;
   relics!: Table<Relic, string>;
@@ -11,6 +20,7 @@ export class Sts2Db extends Dexie {
   memos!: Table<ComboMemo, number>;
   images!: Table<StoredImage, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
+  backups!: Table<BackupRecord, number>;
 
   constructor() {
     super('sts2-companion');
@@ -24,6 +34,9 @@ export class Sts2Db extends Dexie {
     });
     this.version(2).stores({
       images: 'id, updatedAt'
+    });
+    this.version(3).stores({
+      backups: '++id, createdAt, kind'
     });
   }
 }

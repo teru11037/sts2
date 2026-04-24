@@ -2,6 +2,12 @@ import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import TopBar from '../components/TopBar';
 import { db, exportAll, importAll } from '../db';
+import {
+  createManualBackup,
+  deleteBackup,
+  listBackups,
+  restoreBackup
+} from '../db/backup';
 import { garbageCollectImages } from '../lib/images';
 
 export default function Settings() {
@@ -13,6 +19,37 @@ export default function Settings() {
     const bytes = all.reduce((acc, i) => acc + i.dataUrl.length, 0);
     return { count: all.length, bytes };
   });
+
+  const backups = useLiveQuery(() => listBackups(), []);
+
+  const doCreateBackup = async () => {
+    await createManualBackup();
+    alert('手動バックアップを作成しました');
+  };
+
+  const doRestore = async (id: number, at: number) => {
+    const ok = confirm(
+      `${new Date(at).toLocaleString('ja-JP')} の状態に復元します。\n\n` +
+        '現在のデータは同時に自動バックアップとして退避されるので、後から戻せます。\n\n' +
+        '続行しますか？'
+    );
+    if (!ok) return;
+    try {
+      await restoreBackup(id);
+      alert('復元しました。ページを再読み込みします。');
+      location.reload();
+    } catch (err) {
+      alert('復元に失敗しました: ' + (err as Error).message);
+    }
+  };
+
+  const doDeleteBackup = async (id: number) => {
+    if (!confirm('このバックアップを削除しますか？')) return;
+    await deleteBackup(id);
+  };
+
+  const fmtBytes = (n: number) =>
+    n < 1024 ? n + 'B' : n < 1024 * 1024 ? (n / 1024).toFixed(0) + 'KB' : (n / 1024 / 1024).toFixed(1) + 'MB';
 
   const runGc = async () => {
     const removed = await garbageCollectImages();
@@ -89,6 +126,70 @@ export default function Settings() {
           <button className="danger" onClick={resetAll}>
             🧹 全データリセット
           </button>
+        </div>
+
+        <div className="section-title">自動バックアップ</div>
+        <div className="card card-compact">
+          <div className="dim" style={{ fontSize: 12, marginBottom: 8 }}>
+            起動時に直近 20 時間以上経っていれば自動バックアップを作成します。
+            自動分は最大 7 件まで保持、古いものから削除されます。
+          </div>
+          <button onClick={doCreateBackup}>💾 いま手動バックアップを作成</button>
+          {(!backups || backups.length === 0) && (
+            <div className="dim" style={{ marginTop: 8, fontSize: 12 }}>
+              まだバックアップがありません。
+            </div>
+          )}
+          {backups && backups.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              {backups.map((b) => (
+                <div
+                  key={b.id}
+                  className="row-between"
+                  style={{
+                    padding: '8px 0',
+                    borderTop: '1px solid var(--border-soft)',
+                    gap: 6
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {new Date(b.createdAt).toLocaleString('ja-JP', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                      <span
+                        className="tag"
+                        style={{ marginLeft: 6, fontSize: 10, padding: '0 6px' }}
+                      >
+                        {b.kind === 'auto' ? '自動' : '手動'}
+                      </span>
+                    </div>
+                    <div className="dim" style={{ fontSize: 11 }}>
+                      {fmtBytes(b.bytes)}
+                      {b.label ? ` · ${b.label}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => doRestore(b.id!, b.createdAt)}
+                    style={{ padding: '6px 10px', minHeight: 32, fontSize: 12 }}
+                  >
+                    復元
+                  </button>
+                  <button
+                    className="danger"
+                    onClick={() => doDeleteBackup(b.id!)}
+                    style={{ padding: '6px 8px', minHeight: 32, fontSize: 12 }}
+                    aria-label="削除"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="section-title">画像ストレージ</div>
