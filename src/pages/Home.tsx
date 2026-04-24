@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import TopBar from '../components/TopBar';
+import { CHARACTER_MAP } from '../data/characters';
 
 export default function Home() {
   const counts = useLiveQuery(async () => {
@@ -87,7 +88,7 @@ export default function Home() {
             <Link to={`/runs/${latestRun.id}`} className="list-item">
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>
-                  {latestRun.character} / {labelResult(latestRun.result)} / F{latestRun.floorReached ?? '-'}
+                  {CHARACTER_MAP[latestRun.character]?.nameJa ?? latestRun.character} / {labelResult(latestRun.result)} / F{latestRun.floorReached ?? '-'}
                 </div>
                 <div className="dim">
                   {new Date(latestRun.startedAt).toLocaleString('ja-JP')}

@@ -45,7 +45,9 @@ export default function CardEdit() {
       alert('名前を入力してください');
       return;
     }
-    await db.cards.put({ ...card, isCustom: card.isCustom ?? 1 });
+    // 編集・新規ともユーザデータ扱い (isCustom=1) にすることで、
+    // 将来のシード再投入から保護する。
+    await db.cards.put({ ...card, isCustom: 1 });
     nav(-1);
   };
 

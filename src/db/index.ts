@@ -34,12 +34,21 @@ export async function ensureSeeded(): Promise<void> {
   if (current >= SEED_VERSION) return;
 
   await db.transaction('rw', db.cards, db.relics, db.meta, async () => {
-    // シードは isCustom=0 で投入。ユーザが編集・作成したカード (isCustom=1) はこのパスでは触らない。
-    const cardsToPut = SEED_CARDS.map((c) => ({ ...c, isCustom: 0 as const }));
-    await db.cards.bulkPut(cardsToPut);
+    // isCustom=1 (ユーザが編集・追加したもの) は触らない。
+    // 既存でも isCustom=0 / undefined なら上書きする (seed 側のバグ修正を反映できる)。
+    const existingCards = await db.cards.bulkGet(SEED_CARDS.map((c) => c.id));
+    for (let i = 0; i < SEED_CARDS.length; i++) {
+      const ex = existingCards[i];
+      if (ex && ex.isCustom === 1) continue;
+      await db.cards.put({ ...SEED_CARDS[i], isCustom: 0 });
+    }
 
-    const relicsToPut = SEED_RELICS.map((r) => ({ ...r, isCustom: 0 as const }));
-    await db.relics.bulkPut(relicsToPut);
+    const existingRelics = await db.relics.bulkGet(SEED_RELICS.map((r) => r.id));
+    for (let i = 0; i < SEED_RELICS.length; i++) {
+      const ex = existingRelics[i];
+      if (ex && ex.isCustom === 1) continue;
+      await db.relics.put({ ...SEED_RELICS[i], isCustom: 0 });
+    }
 
     await db.meta.put({ key: 'seedVersion', value: SEED_VERSION });
   });

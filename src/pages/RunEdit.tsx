@@ -153,6 +153,46 @@ export default function RunEdit() {
     });
   };
 
+  const bumpFloor = (delta: number) => {
+    setRun((prev) => (prev ? { ...prev, floorReached: Math.max(0, (prev.floorReached ?? 0) + delta) } : prev));
+  };
+
+  const recordBoss = () => {
+    setRun((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        events: [
+          ...prev.events,
+          {
+            id: 'e_' + Math.random().toString(36).slice(2, 10),
+            at: Date.now(),
+            floor: prev.floorReached,
+            kind: 'boss_defeated'
+          }
+        ]
+      };
+    });
+  };
+
+  const recordElite = () => {
+    setRun((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        events: [
+          ...prev.events,
+          {
+            id: 'e_' + Math.random().toString(36).slice(2, 10),
+            at: Date.now(),
+            floor: prev.floorReached,
+            kind: 'elite_defeated'
+          }
+        ]
+      };
+    });
+  };
+
   const addNote = () => {
     if (!noteDraft.trim()) return;
     pushEvent({
@@ -201,6 +241,13 @@ export default function RunEdit() {
               onChange={(e) => setRun({ ...run, floorReached: Number(e.target.value) })}
             />
           </label>
+        </div>
+        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <button onClick={() => bumpFloor(1)}>+1 F</button>
+          <button onClick={() => bumpFloor(5)}>+5 F</button>
+          <button onClick={() => bumpFloor(-1)}>-1 F</button>
+          <button onClick={recordElite}>⚔️ エリート撃破</button>
+          <button onClick={recordBoss}>🐉 ボス撃破</button>
         </div>
         <label className="field">
           <span>結果</span>
@@ -331,13 +378,14 @@ export default function RunEdit() {
       {pick && (
         <TilePicker
           mode={pick.mode}
+          multi
           characterFilter={pick.mode === 'card' ? run.character : undefined}
           onPick={(pid) => {
             if (pick.target === 'deck') addToDeck(pid);
             else if (pick.target === 'relic') addRelic(pid);
-            setPick(null);
           }}
           onClose={() => setPick(null)}
+          selectedIds={pick.target === 'relic' ? run.finalRelics : undefined}
         />
       )}
     </>

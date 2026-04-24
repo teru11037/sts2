@@ -33,6 +33,8 @@ export default function MemoEdit() {
   const [pendingFromId, setPendingFromId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showProps, setShowProps] = useState(false);
+  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
+  const [edgeLabelDraft, setEdgeLabelDraft] = useState('');
 
   useEffect(() => {
     if (!id) setMemo(newMemo());
@@ -69,14 +71,17 @@ export default function MemoEdit() {
   };
 
   const addNodeAtCenter = (partial: Omit<ComboNode, 'id' | 'x' | 'y'>) => {
-    const offset = memo.nodes.length * 18;
-    const node: ComboNode = {
-      id: uid(),
-      x: 160 + offset,
-      y: 220 + offset,
-      ...partial
-    };
-    setMemo({ ...memo, nodes: [...memo.nodes, node] });
+    setMemo((prev) => {
+      if (!prev) return prev;
+      const offset = (prev.nodes.length % 12) * 22;
+      const node: ComboNode = {
+        id: uid(),
+        x: 160 + offset,
+        y: 200 + offset,
+        ...partial
+      };
+      return { ...prev, nodes: [...prev.nodes, node] };
+    });
   };
 
   const handleTapNode = (nid: string) => {
@@ -113,19 +118,25 @@ export default function MemoEdit() {
   const handleTapEdge = (eid: string) => {
     const ed = memo.edges.find((e) => e.id === eid);
     if (!ed) return;
-    const choice = prompt(
-      'ラベル (空欄で削除可)\n現在: ' + (ed.label ?? '(なし)'),
-      ed.label ?? ''
-    );
-    if (choice === null) return;
-    if (choice === '__DELETE__' || choice.toLowerCase() === 'delete') {
-      setMemo({ ...memo, edges: memo.edges.filter((e) => e.id !== eid) });
-      return;
-    }
+    setEdgeLabelDraft(ed.label ?? '');
+    setEditingEdgeId(eid);
+  };
+
+  const applyEdgeLabel = () => {
+    if (!editingEdgeId) return;
     setMemo({
       ...memo,
-      edges: memo.edges.map((e) => (e.id === eid ? { ...e, label: choice || undefined } : e))
+      edges: memo.edges.map((e) =>
+        e.id === editingEdgeId ? { ...e, label: edgeLabelDraft.trim() || undefined } : e
+      )
     });
+    setEditingEdgeId(null);
+  };
+
+  const deleteEdge = () => {
+    if (!editingEdgeId) return;
+    setMemo({ ...memo, edges: memo.edges.filter((e) => e.id !== editingEdgeId) });
+    setEditingEdgeId(null);
   };
 
   const deleteSelected = () => {
@@ -302,24 +313,50 @@ export default function MemoEdit() {
         </div>
       </div>
 
+      {editingEdgeId && (
+        <div className="modal-backdrop" onClick={() => setEditingEdgeId(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="row-between">
+              <h2>線を編集</h2>
+              <button className="ghost" onClick={() => setEditingEdgeId(null)} aria-label="閉じる">
+                ✕
+              </button>
+            </div>
+            <label className="field">
+              <span>ラベル (空欄で外す)</span>
+              <input
+                value={edgeLabelDraft}
+                onChange={(e) => setEdgeLabelDraft(e.target.value)}
+                placeholder="例: 毎ターン / 強化後 / 起点"
+                autoFocus
+              />
+            </label>
+            <div className="row" style={{ marginTop: 12, gap: 10 }}>
+              <button className="primary grow" onClick={applyEdgeLabel}>
+                保存
+              </button>
+              <button className="danger" onClick={deleteEdge}>
+                線を削除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pick === 'card' && (
         <TilePicker
           mode="card"
+          multi
           characterFilter={memo.character}
-          onPick={(cid) => {
-            addNodeAtCenter({ kind: 'card', refId: cid });
-            setPick(null);
-          }}
+          onPick={(cid) => addNodeAtCenter({ kind: 'card', refId: cid })}
           onClose={() => setPick(null)}
         />
       )}
       {pick === 'relic' && (
         <TilePicker
           mode="relic"
-          onPick={(rid) => {
-            addNodeAtCenter({ kind: 'relic', refId: rid });
-            setPick(null);
-          }}
+          multi
+          onPick={(rid) => addNodeAtCenter({ kind: 'relic', refId: rid })}
           onClose={() => setPick(null)}
         />
       )}

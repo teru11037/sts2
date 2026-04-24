@@ -42,6 +42,25 @@ export default function ComboCanvas({
   const pinching = useRef<null | { d0: number; s0: number; mx: number; my: number; tx0: number; ty0: number }>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const movedDuringDrag = useRef(false);
+  const pendingMove = useRef<null | { id: string; x: number; y: number }>(null);
+  const rafId = useRef<number | null>(null);
+
+  const scheduleMove = (id: string, x: number, y: number) => {
+    pendingMove.current = { id, x, y };
+    if (rafId.current != null) return;
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = null;
+      const m = pendingMove.current;
+      pendingMove.current = null;
+      if (m) onMoveNode(m.id, m.x, m.y);
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rafId.current != null) cancelAnimationFrame(rafId.current);
+    };
+  }, []);
 
   // wheel zoom
   useEffect(() => {
@@ -117,7 +136,7 @@ export default function ComboCanvas({
 
     if (draggingNode.current) {
       const p = worldPt(e.clientX, e.clientY);
-      onMoveNode(draggingNode.current.id, p.x - draggingNode.current.dx, p.y - draggingNode.current.dy);
+      scheduleMove(draggingNode.current.id, p.x - draggingNode.current.dx, p.y - draggingNode.current.dy);
       movedDuringDrag.current = true;
       return;
     }

@@ -36,7 +36,7 @@ export default function RelicEdit() {
       alert('名前を入力してください');
       return;
     }
-    await db.relics.put({ ...relic, isCustom: relic.isCustom ?? 1 });
+    await db.relics.put({ ...relic, isCustom: 1 });
     nav(-1);
   };
 

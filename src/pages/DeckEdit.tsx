@@ -254,6 +254,7 @@ export default function DeckEdit() {
       {pick === 'card' && (
         <TilePicker
           mode="card"
+          multi
           characterFilter={deck.character}
           onPick={(cid) => addCard(cid)}
           onClose={() => setPick(null)}
@@ -262,10 +263,8 @@ export default function DeckEdit() {
       {pick === 'relic' && (
         <TilePicker
           mode="relic"
-          onPick={(rid) => {
-            addRelic(rid);
-            setPick(null);
-          }}
+          multi
+          onPick={(rid) => addRelic(rid)}
           onClose={() => setPick(null)}
           selectedIds={deck.relics}
         />
