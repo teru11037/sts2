@@ -88,6 +88,14 @@ export default function DeckEdit() {
     setDeck({ ...deck, cards: next });
   };
 
+  const duplicateAt = (i: number) => {
+    const src = deck.cards[i];
+    if (!src) return;
+    const next = deck.cards.slice();
+    next.splice(i + 1, 0, { ...src });
+    setDeck({ ...deck, cards: next });
+  };
+
   const addRelic = (relicId: string) => {
     if (deck.relics.includes(relicId)) return;
     setDeck({ ...deck, relics: [...deck.relics, relicId] });
@@ -161,13 +169,23 @@ export default function DeckEdit() {
                   <button
                     onClick={() => toggleUpgrade(i)}
                     style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="強化切替"
                   >
                     {dc.upgraded ? '+' : '通'}
+                  </button>
+                  <button
+                    onClick={() => duplicateAt(i)}
+                    style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="複製"
+                    title="+1"
+                  >
+                    ⧉
                   </button>
                   <button
                     className="danger"
                     onClick={() => removeCardAt(i)}
                     style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="削除"
                   >
                     ✕
                   </button>

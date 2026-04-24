@@ -132,6 +132,22 @@ export default function RunEdit() {
     });
   };
 
+  const duplicateDeckAt = (i: number) => {
+    const src = run.finalDeck[i];
+    if (!src) return;
+    const next = run.finalDeck.slice();
+    next.splice(i + 1, 0, { ...src });
+    setRun({ ...run, finalDeck: next });
+    pushEvent({
+      id: 'e_' + Math.random().toString(36).slice(2, 10),
+      at: Date.now(),
+      floor: run.floorReached,
+      kind: 'card_added',
+      subjectId: src.cardId,
+      detail: '(複製)'
+    });
+  };
+
   const addRelic = (relicId: string) => {
     if (run.finalRelics.includes(relicId)) return;
     setRun({ ...run, finalRelics: [...run.finalRelics, relicId] });
@@ -289,13 +305,22 @@ export default function RunEdit() {
                   <button
                     onClick={() => toggleUpgrade(i)}
                     style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="強化切替"
                   >
                     {dc.upgraded ? '+' : '通'}
+                  </button>
+                  <button
+                    onClick={() => duplicateDeckAt(i)}
+                    style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="複製"
+                  >
+                    ⧉
                   </button>
                   <button
                     className="danger"
                     onClick={() => removeDeckAt(i)}
                     style={{ padding: '2px 6px', fontSize: 11, minHeight: 0 }}
+                    aria-label="削除"
                   >
                     ✕
                   </button>

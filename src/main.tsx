@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { ensureSeeded } from './db';
+import ErrorBoundary from './components/ErrorBoundary';
 
 ensureSeeded().catch((err) => {
   console.error('Seed failed', err);
@@ -11,8 +12,10 @@ ensureSeeded().catch((err) => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HashRouter>
-      <App />
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );

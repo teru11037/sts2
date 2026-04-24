@@ -24,9 +24,44 @@ npm run dev
 
 同一 Wi-Fi の iPhone からアクセスするには、ターミナルに表示される `http://<LAN IP>:5173/` を Safari で開いてください。
 
+## デプロイ (推奨: Vercel)
+
+このリポジトリには `vercel.json` / `netlify.toml` を同梱しています。Service Worker の二重キャッシュを避けるため `sw.js` に `Cache-Control: no-cache` を付与済み。
+
+### Vercel (最短 3 分)
+
+1. [vercel.com/new](https://vercel.com/new) にログインして GitHub リポジトリをインポート
+2. Framework Preset は **Other**、Build Command `npm run build`、Output `dist` (vercel.json が自動検出するので基本いじらない)
+3. Deploy → `https://<project>.vercel.app` が発行される
+4. iPhone Safari でそのURLを開く → 共有 → ホーム画面に追加
+
+> HTTPS 必須 (PWA / Service Worker 要件) ですが Vercel / Netlify は自動で付与されます。
+
+### Netlify
+
+同じリポジトリを [app.netlify.com](https://app.netlify.com) から「Add new site → Import from Git」で接続するだけ。`netlify.toml` が設定を読み込みます。
+
+### GitHub Pages (Hash Router なので SPA リダイレクト不要)
+
+```bash
+npm run build
+# dist/ をそのまま gh-pages ブランチに push
+```
+
+## ローカル起動
+
+```bash
+npm install
+npm run dev
+```
+
+同一 Wi-Fi の iPhone からアクセスするには、ターミナルに表示される `http://<LAN IP>:5173/` を Safari で開いてください。
+
+> 実機で PWA 挙動 (オフライン・ホーム画面アイコンのフルスクリーン) を試すには `npm run build && npm run preview` を使ってください。dev サーバでは Service Worker が無効です。
+
 ## iPhone にインストール (PWA)
 
-1. Safari で開く
+1. デプロイ済みの URL (または `npm run preview` の URL) を Safari で開く
 2. 共有ボタン → 「ホーム画面に追加」
 3. ホーム画面のアイコンから起動するとフルスクリーン + オフライン動作
 
@@ -61,7 +96,9 @@ src/
 
 ## 今後の拡張メモ
 
-- カード画像の差し替え (ローカル画像アップロード対応)
-- ランのインポート (ゲーム側のセーブパースは EA 仕様変わりやすいので手動記録優先)
+- コンボ図の PNG/SVG 書き出し (共有機能)
+- オートレイアウト (コンボ図)
+- タグ UI とタグ検索
+- シードデータ拡充 (100+ カード / 50+ レリック)
 - 複数端末同期 (任意で Supabase 等を後付け)
-- コンボの PNG/SVG 書き出し
+- Vitest による主要ロジックのユニットテスト
