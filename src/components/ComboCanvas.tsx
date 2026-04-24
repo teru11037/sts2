@@ -142,10 +142,13 @@ export default function ComboCanvas({
     }
 
     if (panning.current) {
-      const dx = e.clientX - panning.current.startX;
-      const dy = e.clientY - panning.current.startY;
+      // panning.current を local に退避。setView のコールバックが実行されるまでに
+      // pointerup で null 化される競合があるため。
+      const p = panning.current;
+      const dx = e.clientX - p.startX;
+      const dy = e.clientY - p.startY;
       if (Math.abs(dx) + Math.abs(dy) > 3) movedDuringDrag.current = true;
-      setView((v) => ({ ...v, tx: panning.current!.tx0 + dx, ty: panning.current!.ty0 + dy }));
+      setView((v) => ({ ...v, tx: p.tx0 + dx, ty: p.ty0 + dy }));
     }
   };
 
