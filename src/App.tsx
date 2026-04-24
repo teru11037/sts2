@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import BottomNav from './components/BottomNav';
 import PageTransition from './components/PageTransition';
@@ -14,6 +14,7 @@ import RunEdit from './pages/RunEdit';
 import Memos from './pages/Memos';
 import MemoEdit from './pages/MemoEdit';
 import Settings from './pages/Settings';
+import NotFound from './components/NotFound';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -37,7 +38,7 @@ function AnimatedRoutes() {
         <Route path="/memos/new" element={<PageTransition><MemoEdit /></PageTransition>} />
         <Route path="/memos/:id" element={<PageTransition><MemoEdit /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );

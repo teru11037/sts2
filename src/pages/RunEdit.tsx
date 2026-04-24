@@ -6,8 +6,12 @@ import TopBar from '../components/TopBar';
 import CardTile from '../components/CardTile';
 import RelicTile from '../components/RelicTile';
 import TilePicker from '../components/TilePicker';
+import BulkAddModal from '../components/BulkAddModal';
+import NotFound from '../components/NotFound';
 import { CHARACTERS } from '../data/characters';
 import { useImagesMap } from '../hooks/useImagesMap';
+import { useUnsavedGuard, confirmBack } from '../hooks/useUnsavedGuard';
+import { toInt } from '../lib/num';
 import type { Card, CharacterId, Relic, Run, RunEvent, RunResult } from '../types';
 
 function newRun(): Run {
@@ -43,13 +47,30 @@ export default function RunEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [run, setRun] = useState<Run | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [pick, setPick] = useState<null | { mode: 'card' | 'relic'; target: 'deck' | 'relic' | 'event'; eventKind?: RunEvent['kind'] }>(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [showBulk, setShowBulk] = useState(false);
+
+  useUnsavedGuard(dirty);
 
   useEffect(() => {
-    if (!id) setRun(newRun());
-    else db.runs.get(Number(id)).then((r) => setRun(r ?? null));
+    if (!id) {
+      setRun(newRun());
+      setLoaded(true);
+    } else {
+      db.runs.get(Number(id)).then((r) => {
+        setRun(r ?? null);
+        setLoaded(true);
+      });
+    }
   }, [id]);
+
+  const updateRun = (next: Run) => {
+    setRun(next);
+    setDirty(true);
+  };
 
   const allCards = useLiveQuery(() => db.cards.toArray(), []);
   const cardMap = useMemo(() => {
@@ -65,7 +86,8 @@ export default function RunEdit() {
   }, [allRelics]);
   const images = useImagesMap();
 
-  if (!run) return null;
+  if (!loaded) return null;
+  if (!run) return <NotFound title="ランが見つかりません" />;
 
   const save = async () => {
     const endedAt = run.result === 'in_progress' ? undefined : run.endedAt ?? Date.now();
@@ -75,6 +97,7 @@ export default function RunEdit() {
     } else {
       await db.runs.add(toSave);
     }
+    setDirty(false);
     nav(-1);
   };
 
@@ -82,15 +105,16 @@ export default function RunEdit() {
     if (!run.id) return;
     if (!confirm('このランを削除しますか？')) return;
     await db.runs.delete(run.id);
+    setDirty(false);
     nav(-1);
   };
 
   const pushEvent = (ev: RunEvent) => {
-    setRun({ ...run, events: [...run.events, ev] });
+    updateRun({ ...run, events: [...run.events, ev] });
   };
 
   const addToDeck = (cardId: string) => {
-    setRun({
+    updateRun({
       ...run,
       finalDeck: [...run.finalDeck, { cardId, upgraded: 0 }]
     });
@@ -107,7 +131,7 @@ export default function RunEdit() {
     const cardId = run.finalDeck[i]?.cardId;
     const next = run.finalDeck.slice();
     next.splice(i, 1);
-    setRun({ ...run, finalDeck: next });
+    updateRun({ ...run, finalDeck: next });
     if (cardId)
       pushEvent({
         id: 'e_' + Math.random().toString(36).slice(2, 10),
@@ -122,7 +146,7 @@ export default function RunEdit() {
     const next = run.finalDeck.slice();
     const prev = next[i];
     next[i] = { ...prev, upgraded: prev.upgraded ? 0 : 1 };
-    setRun({ ...run, finalDeck: next });
+    updateRun({ ...run, finalDeck: next });
     pushEvent({
       id: 'e_' + Math.random().toString(36).slice(2, 10),
       at: Date.now(),
@@ -137,7 +161,7 @@ export default function RunEdit() {
     if (!src) return;
     const next = run.finalDeck.slice();
     next.splice(i + 1, 0, { ...src });
-    setRun({ ...run, finalDeck: next });
+    updateRun({ ...run, finalDeck: next });
     pushEvent({
       id: 'e_' + Math.random().toString(36).slice(2, 10),
       at: Date.now(),
@@ -150,7 +174,7 @@ export default function RunEdit() {
 
   const addRelic = (relicId: string) => {
     if (run.finalRelics.includes(relicId)) return;
-    setRun({ ...run, finalRelics: [...run.finalRelics, relicId] });
+    updateRun({ ...run, finalRelics: [...run.finalRelics, relicId] });
     pushEvent({
       id: 'e_' + Math.random().toString(36).slice(2, 10),
       at: Date.now(),
@@ -161,7 +185,7 @@ export default function RunEdit() {
   };
 
   const removeRelic = (relicId: string) => {
-    setRun({ ...run, finalRelics: run.finalRelics.filter((r) => r !== relicId) });
+    updateRun({ ...run, finalRelics: run.finalRelics.filter((r) => r !== relicId) });
     pushEvent({
       id: 'e_' + Math.random().toString(36).slice(2, 10),
       at: Date.now(),
@@ -172,42 +196,44 @@ export default function RunEdit() {
   };
 
   const bumpFloor = (delta: number) => {
-    setRun((prev) => (prev ? { ...prev, floorReached: Math.max(0, (prev.floorReached ?? 0) + delta) } : prev));
+    updateRun({ ...run, floorReached: Math.max(0, (run.floorReached ?? 0) + delta) });
   };
 
   const recordBoss = () => {
-    setRun((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        events: [
-          ...prev.events,
-          {
-            id: 'e_' + Math.random().toString(36).slice(2, 10),
-            at: Date.now(),
-            floor: prev.floorReached,
-            kind: 'boss_defeated'
-          }
-        ]
-      };
+    updateRun({
+      ...run,
+      events: [
+        ...run.events,
+        {
+          id: 'e_' + Math.random().toString(36).slice(2, 10),
+          at: Date.now(),
+          floor: run.floorReached,
+          kind: 'boss_defeated'
+        }
+      ]
     });
   };
 
   const recordElite = () => {
-    setRun((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        events: [
-          ...prev.events,
-          {
-            id: 'e_' + Math.random().toString(36).slice(2, 10),
-            at: Date.now(),
-            floor: prev.floorReached,
-            kind: 'elite_defeated'
-          }
-        ]
-      };
+    updateRun({
+      ...run,
+      events: [
+        ...run.events,
+        {
+          id: 'e_' + Math.random().toString(36).slice(2, 10),
+          at: Date.now(),
+          floor: run.floorReached,
+          kind: 'elite_defeated'
+        }
+      ]
+    });
+  };
+
+  const bulkAddCards = (ids: string[]) => {
+    if (!ids.length) return;
+    updateRun({
+      ...run,
+      finalDeck: [...run.finalDeck, ...ids.map((cardId) => ({ cardId, upgraded: 0 }))]
     });
   };
 
@@ -225,14 +251,14 @@ export default function RunEdit() {
 
   return (
     <>
-      <TopBar title={id ? 'ラン編集' : 'ラン新規'} back />
+      <TopBar title={id ? 'ラン編集' : 'ラン新規'} back onBack={() => confirmBack(dirty)} />
       <div className="content">
         <div className="row" style={{ gap: 10 }}>
           <label className="field" style={{ flex: 1 }}>
             <span>キャラ</span>
             <select
               value={run.character}
-              onChange={(e) => setRun({ ...run, character: e.target.value as CharacterId })}
+              onChange={(e) => updateRun({ ...run, character: e.target.value as CharacterId })}
             >
               {CHARACTERS.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -247,7 +273,9 @@ export default function RunEdit() {
               type="number"
               inputMode="numeric"
               value={run.ascension ?? 0}
-              onChange={(e) => setRun({ ...run, ascension: Number(e.target.value) })}
+              min={0}
+              max={20}
+              onChange={(e) => updateRun({ ...run, ascension: toInt(e.target.value, 0) })}
             />
           </label>
           <label className="field" style={{ width: 100 }}>
@@ -256,7 +284,8 @@ export default function RunEdit() {
               type="number"
               inputMode="numeric"
               value={run.floorReached ?? 0}
-              onChange={(e) => setRun({ ...run, floorReached: Number(e.target.value) })}
+              min={0}
+              onChange={(e) => updateRun({ ...run, floorReached: toInt(e.target.value, 0) })}
             />
           </label>
         </div>
@@ -271,7 +300,7 @@ export default function RunEdit() {
           <span>結果</span>
           <select
             value={run.result}
-            onChange={(e) => setRun({ ...run, result: e.target.value as RunResult })}
+            onChange={(e) => updateRun({ ...run, result: e.target.value as RunResult })}
           >
             <option value="in_progress">進行中</option>
             <option value="victory">勝利</option>
@@ -329,9 +358,12 @@ export default function RunEdit() {
             );
           })}
         </div>
-        <button className="primary" style={{ marginTop: 8 }} onClick={() => setPick({ mode: 'card', target: 'deck' })}>
-          ＋ カード獲得
-        </button>
+        <div className="row" style={{ marginTop: 8, gap: 8 }}>
+          <button className="primary grow" onClick={() => setPick({ mode: 'card', target: 'deck' })}>
+            ＋ カード獲得
+          </button>
+          <button onClick={() => setShowBulk(true)}>📋 最終デッキ貼付</button>
+        </div>
 
         <div className="section-title">レリック ({run.finalRelics.length})</div>
         <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', justifyItems: 'center' }}>
@@ -398,7 +430,7 @@ export default function RunEdit() {
 
         <label className="field" style={{ marginTop: 12 }}>
           <span>総評メモ</span>
-          <textarea value={run.notes ?? ''} onChange={(e) => setRun({ ...run, notes: e.target.value })} />
+          <textarea value={run.notes ?? ''} onChange={(e) => updateRun({ ...run, notes: e.target.value })} />
         </label>
 
         <div className="row" style={{ marginTop: 16, gap: 10 }}>
@@ -424,6 +456,17 @@ export default function RunEdit() {
           }}
           onClose={() => setPick(null)}
           selectedIds={pick.target === 'relic' ? run.finalRelics : undefined}
+        />
+      )}
+      {showBulk && (
+        <BulkAddModal
+          cards={allCards ?? []}
+          characterFilter={run.character}
+          onApply={(ids) => {
+            bulkAddCards(ids);
+            setShowBulk(false);
+          }}
+          onClose={() => setShowBulk(false)}
         />
       )}
     </>

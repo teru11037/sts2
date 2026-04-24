@@ -5,8 +5,10 @@ import { db } from '../db';
 import TopBar from '../components/TopBar';
 import ComboCanvas from '../components/ComboCanvas';
 import TilePicker from '../components/TilePicker';
+import NotFound from '../components/NotFound';
 import { CHARACTERS } from '../data/characters';
 import { useImagesMap } from '../hooks/useImagesMap';
+import { useUnsavedGuard, confirmBack } from '../hooks/useUnsavedGuard';
 import type { Card, CharacterId, ComboEdge, ComboMemo, ComboNode, Relic } from '../types';
 
 function newMemo(): ComboMemo {
@@ -29,6 +31,8 @@ export default function MemoEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [memo, setMemo] = useState<ComboMemo | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [pick, setPick] = useState<null | 'card' | 'relic'>(null);
   const [connectMode, setConnectMode] = useState(false);
   const [pendingFromId, setPendingFromId] = useState<string | null>(null);
@@ -37,10 +41,24 @@ export default function MemoEdit() {
   const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
   const [edgeLabelDraft, setEdgeLabelDraft] = useState('');
 
+  useUnsavedGuard(dirty);
+
   useEffect(() => {
-    if (!id) setMemo(newMemo());
-    else db.memos.get(Number(id)).then((m) => setMemo(m ?? null));
+    if (!id) {
+      setMemo(newMemo());
+      setLoaded(true);
+    } else {
+      db.memos.get(Number(id)).then((m) => {
+        setMemo(m ?? null);
+        setLoaded(true);
+      });
+    }
   }, [id]);
+
+  const updateMemo = (next: ComboMemo) => {
+    setMemo(next);
+    setDirty(true);
+  };
 
   const allCards = useLiveQuery(() => db.cards.toArray(), []);
   const cardMap = useMemo(() => {
@@ -56,12 +74,14 @@ export default function MemoEdit() {
   }, [allRelics]);
   const images = useImagesMap();
 
-  if (!memo) return null;
+  if (!loaded) return null;
+  if (!memo) return <NotFound title="コンボメモが見つかりません" />;
 
   const save = async () => {
     const now = Date.now();
     if (memo.id) await db.memos.put({ ...memo, updatedAt: now });
     else await db.memos.add({ ...memo, createdAt: now, updatedAt: now });
+    setDirty(false);
     nav(-1);
   };
 
@@ -69,21 +89,19 @@ export default function MemoEdit() {
     if (!memo.id) return;
     if (!confirm('このコンボメモを削除しますか？')) return;
     await db.memos.delete(memo.id);
+    setDirty(false);
     nav(-1);
   };
 
   const addNodeAtCenter = (partial: Omit<ComboNode, 'id' | 'x' | 'y'>) => {
-    setMemo((prev) => {
-      if (!prev) return prev;
-      const offset = (prev.nodes.length % 12) * 22;
-      const node: ComboNode = {
-        id: uid(),
-        x: 160 + offset,
-        y: 200 + offset,
-        ...partial
-      };
-      return { ...prev, nodes: [...prev.nodes, node] };
-    });
+    const offset = (memo.nodes.length % 12) * 22;
+    const node: ComboNode = {
+      id: uid(),
+      x: 160 + offset,
+      y: 200 + offset,
+      ...partial
+    };
+    updateMemo({ ...memo, nodes: [...memo.nodes, node] });
   };
 
   const handleTapNode = (nid: string) => {
@@ -98,7 +116,7 @@ export default function MemoEdit() {
           from: pendingFromId,
           to: nid
         };
-        setMemo({ ...memo, edges: [...memo.edges, edge] });
+        updateMemo({ ...memo, edges: [...memo.edges, edge] });
         setPendingFromId(null);
       }
       return;
@@ -115,6 +133,8 @@ export default function MemoEdit() {
         nodes: prev.nodes.map((n) => (n.id === nid ? { ...n, x, y } : n))
       };
     });
+    // ドラッグ中の頻繁な setState は毎回 dirty を立てるとコストなので、一度立てて以降は変わらない
+    if (!dirty) setDirty(true);
   };
 
   const handleTapEdge = (eid: string) => {
@@ -126,7 +146,7 @@ export default function MemoEdit() {
 
   const applyEdgeLabel = () => {
     if (!editingEdgeId) return;
-    setMemo({
+    updateMemo({
       ...memo,
       edges: memo.edges.map((e) =>
         e.id === editingEdgeId ? { ...e, label: edgeLabelDraft.trim() || undefined } : e
@@ -137,13 +157,13 @@ export default function MemoEdit() {
 
   const deleteEdge = () => {
     if (!editingEdgeId) return;
-    setMemo({ ...memo, edges: memo.edges.filter((e) => e.id !== editingEdgeId) });
+    updateMemo({ ...memo, edges: memo.edges.filter((e) => e.id !== editingEdgeId) });
     setEditingEdgeId(null);
   };
 
   const deleteSelected = () => {
     if (!selectedNodeId) return;
-    setMemo({
+    updateMemo({
       ...memo,
       nodes: memo.nodes.filter((n) => n.id !== selectedNodeId),
       edges: memo.edges.filter((e) => e.from !== selectedNodeId && e.to !== selectedNodeId)
@@ -159,10 +179,11 @@ export default function MemoEdit() {
       <TopBar
         title={id ? 'コンボ編集' : 'コンボ新規'}
         back
+        onBack={() => confirmBack(dirty)}
         right={
           <button
             className="ghost"
-            onClick={() => setMemo({ ...memo, starred: memo.starred ? 0 : 1 })}
+            onClick={() => updateMemo({ ...memo, starred: memo.starred ? 0 : 1 })}
             aria-label="お気に入り"
           >
             {memo.starred ? '⭐' : '☆'}
@@ -172,14 +193,14 @@ export default function MemoEdit() {
       <div style={{ padding: '8px 12px 0 12px' }}>
         <input
           value={memo.title}
-          onChange={(e) => setMemo({ ...memo, title: e.target.value })}
+          onChange={(e) => updateMemo({ ...memo, title: e.target.value })}
           placeholder="タイトル"
           style={{ fontWeight: 600 }}
         />
         <div className="row" style={{ marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
           <select
             value={memo.character ?? ''}
-            onChange={(e) => setMemo({ ...memo, character: (e.target.value || undefined) as CharacterId | undefined })}
+            onChange={(e) => updateMemo({ ...memo, character: (e.target.value || undefined) as CharacterId | undefined })}
             style={{ flex: 1, minWidth: 140 }}
           >
             <option value="">キャラ未指定</option>
@@ -192,7 +213,7 @@ export default function MemoEdit() {
           <input
             style={{ flex: 2, minWidth: 140 }}
             value={memo.tags.join(' ')}
-            onChange={(e) => setMemo({ ...memo, tags: e.target.value.split(/\s+/).filter(Boolean) })}
+            onChange={(e) => updateMemo({ ...memo, tags: e.target.value.split(/\s+/).filter(Boolean) })}
             placeholder="タグ (スペース区切り)"
           />
         </div>
@@ -220,12 +241,6 @@ export default function MemoEdit() {
           onTapNode={handleTapNode}
           onMoveNode={handleMoveNode}
           onTapEdge={handleTapEdge}
-          onUpdateTextNode={(nid, t) =>
-            setMemo({
-              ...memo,
-              nodes: memo.nodes.map((n) => (n.id === nid ? { ...n, text: t } : n))
-            })
-          }
         />
       </div>
 
@@ -277,7 +292,7 @@ export default function MemoEdit() {
               <textarea
                 value={selectedNode.text ?? ''}
                 onChange={(e) =>
-                  setMemo({
+                  updateMemo({
                     ...memo,
                     nodes: memo.nodes.map((n) =>
                       n.id === selectedNode.id ? { ...n, text: e.target.value } : n
@@ -299,7 +314,7 @@ export default function MemoEdit() {
           <span>コンボ説明</span>
           <textarea
             value={memo.body}
-            onChange={(e) => setMemo({ ...memo, body: e.target.value })}
+            onChange={(e) => updateMemo({ ...memo, body: e.target.value })}
             placeholder="例: 力積 + 二刀流 + 怒りで1ターンキル狙い"
           />
         </label>

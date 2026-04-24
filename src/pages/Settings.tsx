@@ -32,10 +32,30 @@ export default function Settings() {
   };
 
   const doImport = async (file: File) => {
-    const text = await file.text();
+    const ok = confirm(
+      `インポートは既存データを同じ ID で上書きします (追記ではなく置換)。\n\nファイル: ${file.name}\n続行しますか？`
+    );
+    if (!ok) return;
+    let text: string;
     try {
-      await importAll(text);
-      alert('インポートしました');
+      text = await file.text();
+    } catch (err) {
+      alert('ファイルの読み込みに失敗しました: ' + (err as Error).message);
+      return;
+    }
+    try {
+      const s = await importAll(text);
+      alert(
+        [
+          'インポート完了。',
+          `カード: ${s.cards} / レリック: ${s.relics}`,
+          `デッキ: ${s.decks} / ラン: ${s.runs}`,
+          `コンボ: ${s.memos} / 画像: ${s.images}`,
+          '',
+          'ページを再読み込みします。'
+        ].join('\n')
+      );
+      location.reload();
     } catch (err) {
       alert('読み込み失敗: ' + (err as Error).message);
     }

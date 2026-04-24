@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../db';
 import TopBar from '../components/TopBar';
 import RelicTile from '../components/RelicTile';
+import NotFound from '../components/NotFound';
 import { CHARACTERS } from '../data/characters';
 import { deleteImage, readAndResize, saveImage } from '../lib/images';
 import { useSingleImage } from '../hooks/useImagesMap';
+import { useUnsavedGuard, confirmBack } from '../hooks/useUnsavedGuard';
 import type { CharacterId, Relic, RelicRarity } from '../types';
 
 const RARITIES: RelicRarity[] = ['Starter', 'Common', 'Uncommon', 'Rare', 'Boss', 'Shop', 'Event'];
@@ -25,13 +27,29 @@ export default function RelicEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [relic, setRelic] = useState<Relic | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  useUnsavedGuard(dirty);
+
   useEffect(() => {
-    if (!id) setRelic(newRelic());
-    else db.relics.get(id).then((r) => setRelic(r ?? null));
+    if (!id) {
+      setRelic(newRelic());
+      setLoaded(true);
+    } else {
+      db.relics.get(id).then((r) => {
+        setRelic(r ?? null);
+        setLoaded(true);
+      });
+    }
   }, [id]);
+
+  const updateRelic = (next: Relic) => {
+    setRelic(next);
+    setDirty(true);
+  };
 
   const imageUrl = useSingleImage(relic?.imageId);
 
@@ -44,7 +62,7 @@ export default function RelicEdit() {
       const { dataUrl, width, height } = await readAndResize(f, { maxEdge: 256, quality: 0.85 });
       const imageId = relic.imageId ?? 'img_' + Math.random().toString(36).slice(2, 10);
       await saveImage(imageId, dataUrl, width, height);
-      setRelic({ ...relic, imageId });
+      updateRelic({ ...relic, imageId });
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -55,18 +73,20 @@ export default function RelicEdit() {
   const clearImage = async () => {
     if (!relic?.imageId) return;
     const prev = relic.imageId;
-    setRelic({ ...relic, imageId: undefined });
+    updateRelic({ ...relic, imageId: undefined });
     await deleteImage(prev);
   };
 
-  if (!relic) return null;
+  if (!loaded) return null;
+  if (!relic) return <NotFound title="レリックが見つかりません" />;
 
   const save = async () => {
-    if (!relic.name.trim()) {
+    if (!relic.name.trim() && !relic.nameJa?.trim()) {
       alert('名前を入力してください');
       return;
     }
     await db.relics.put({ ...relic, isCustom: 1 });
+    setDirty(false);
     nav(-1);
   };
 
@@ -74,12 +94,13 @@ export default function RelicEdit() {
     if (!id) return;
     if (!confirm('このレリックを削除しますか？')) return;
     await db.relics.delete(id);
+    setDirty(false);
     nav(-1);
   };
 
   return (
     <>
-      <TopBar title={id ? 'レリック編集' : 'レリック新規'} back />
+      <TopBar title={id ? 'レリック編集' : 'レリック新規'} back onBack={() => confirmBack(dirty)} />
       <div className="content">
         <div className="stack" style={{ alignItems: 'center', marginBottom: 12 }}>
           <RelicTile relic={relic} size="lg" imageUrl={imageUrl} />
@@ -107,13 +128,13 @@ export default function RelicEdit() {
         <div className="stack">
           <label className="field">
             <span>名前 (英)</span>
-            <input value={relic.name} onChange={(e) => setRelic({ ...relic, name: e.target.value })} />
+            <input value={relic.name} onChange={(e) => updateRelic({ ...relic, name: e.target.value })} />
           </label>
           <label className="field">
             <span>名前 (日本語)</span>
             <input
               value={relic.nameJa ?? ''}
-              onChange={(e) => setRelic({ ...relic, nameJa: e.target.value })}
+              onChange={(e) => updateRelic({ ...relic, nameJa: e.target.value })}
             />
           </label>
           <label className="field">
@@ -121,7 +142,7 @@ export default function RelicEdit() {
             <select
               value={relic.character ?? ''}
               onChange={(e) =>
-                setRelic({ ...relic, character: (e.target.value || undefined) as CharacterId | undefined })
+                updateRelic({ ...relic, character: (e.target.value || undefined) as CharacterId | undefined })
               }
             >
               <option value="">(共通)</option>
@@ -136,7 +157,7 @@ export default function RelicEdit() {
             <span>レアリティ</span>
             <select
               value={relic.rarity}
-              onChange={(e) => setRelic({ ...relic, rarity: e.target.value as RelicRarity })}
+              onChange={(e) => updateRelic({ ...relic, rarity: e.target.value as RelicRarity })}
             >
               {RARITIES.map((r) => (
                 <option key={r} value={r}>
@@ -149,14 +170,14 @@ export default function RelicEdit() {
             <span>効果</span>
             <textarea
               value={relic.description}
-              onChange={(e) => setRelic({ ...relic, description: e.target.value })}
+              onChange={(e) => updateRelic({ ...relic, description: e.target.value })}
             />
           </label>
           <label className="field">
             <span>メモ</span>
             <textarea
               value={relic.notes ?? ''}
-              onChange={(e) => setRelic({ ...relic, notes: e.target.value })}
+              onChange={(e) => updateRelic({ ...relic, notes: e.target.value })}
             />
           </label>
         </div>

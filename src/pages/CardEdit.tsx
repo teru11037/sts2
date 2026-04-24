@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../db';
 import TopBar from '../components/TopBar';
 import CardTile from '../components/CardTile';
+import NotFound from '../components/NotFound';
 import { CHARACTERS } from '../data/characters';
 import { deleteImage, readAndResize, saveImage } from '../lib/images';
 import { useSingleImage } from '../hooks/useImagesMap';
+import { useUnsavedGuard, confirmBack } from '../hooks/useUnsavedGuard';
 import type { Card, CardRarity, CardType, CharacterId } from '../types';
 
 const TYPES: CardType[] = ['Attack', 'Skill', 'Power', 'Status', 'Curse'];
@@ -30,17 +32,31 @@ export default function CardEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [card, setCard] = useState<Card | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [upgraded, setUpgraded] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  useUnsavedGuard(dirty);
+
   useEffect(() => {
     if (!id) {
       setCard(newCard());
+      setLoaded(true);
     } else {
-      db.cards.get(id).then((c) => setCard(c ?? null));
+      db.cards.get(id).then((c) => {
+        setCard(c ?? null);
+        setLoaded(true);
+      });
     }
   }, [id]);
+
+  // 任意の setCard ラッパ。フィールド変更を dirty に反映。
+  const updateCard = (next: Card) => {
+    setCard(next);
+    setDirty(true);
+  };
 
   const imageUrl = useSingleImage(card?.imageId);
 
@@ -53,7 +69,7 @@ export default function CardEdit() {
       const { dataUrl, width, height } = await readAndResize(f, { maxEdge: 512, quality: 0.82 });
       const imageId = card.imageId ?? 'img_' + Math.random().toString(36).slice(2, 10);
       await saveImage(imageId, dataUrl, width, height);
-      setCard({ ...card, imageId });
+      updateCard({ ...card, imageId });
     } catch (err) {
       alert((err as Error).message);
     } finally {
@@ -64,20 +80,20 @@ export default function CardEdit() {
   const clearImage = async () => {
     if (!card?.imageId) return;
     const prev = card.imageId;
-    setCard({ ...card, imageId: undefined });
+    updateCard({ ...card, imageId: undefined });
     await deleteImage(prev);
   };
 
-  if (!card) return null;
+  if (!loaded) return null;
+  if (!card) return <NotFound title="カードが見つかりません" />;
 
   const save = async () => {
-    if (!card.name.trim()) {
+    if (!card.name.trim() && !card.nameJa?.trim()) {
       alert('名前を入力してください');
       return;
     }
-    // 編集・新規ともユーザデータ扱い (isCustom=1) にすることで、
-    // 将来のシード再投入から保護する。
     await db.cards.put({ ...card, isCustom: 1 });
+    setDirty(false);
     nav(-1);
   };
 
@@ -85,12 +101,13 @@ export default function CardEdit() {
     if (!id) return;
     if (!confirm('このカードを削除しますか？\n(シード提供カードは再起動時に復元されます)')) return;
     await db.cards.delete(id);
+    setDirty(false);
     nav(-1);
   };
 
   return (
     <>
-      <TopBar title={id ? 'カード編集' : 'カード新規'} back />
+      <TopBar title={id ? 'カード編集' : 'カード新規'} back onBack={() => confirmBack(dirty)} />
       <div className="content">
         <div className="stack" style={{ alignItems: 'center' }}>
           <CardTile card={card} size="lg" upgraded={upgraded} imageUrl={imageUrl} />
@@ -127,20 +144,20 @@ export default function CardEdit() {
         <div className="stack" style={{ marginTop: 14 }}>
           <label className="field">
             <span>名前 (英)</span>
-            <input value={card.name} onChange={(e) => setCard({ ...card, name: e.target.value })} />
+            <input value={card.name} onChange={(e) => updateCard({ ...card, name: e.target.value })} />
           </label>
           <label className="field">
             <span>名前 (日本語)</span>
             <input
               value={card.nameJa ?? ''}
-              onChange={(e) => setCard({ ...card, nameJa: e.target.value })}
+              onChange={(e) => updateCard({ ...card, nameJa: e.target.value })}
             />
           </label>
           <label className="field">
             <span>キャラクター</span>
             <select
               value={card.character}
-              onChange={(e) => setCard({ ...card, character: e.target.value as CharacterId })}
+              onChange={(e) => updateCard({ ...card, character: e.target.value as CharacterId })}
             >
               {CHARACTERS.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -154,7 +171,7 @@ export default function CardEdit() {
               <span>タイプ</span>
               <select
                 value={card.type}
-                onChange={(e) => setCard({ ...card, type: e.target.value as CardType })}
+                onChange={(e) => updateCard({ ...card, type: e.target.value as CardType })}
               >
                 {TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -167,7 +184,7 @@ export default function CardEdit() {
               <span>レアリティ</span>
               <select
                 value={card.rarity}
-                onChange={(e) => setCard({ ...card, rarity: e.target.value as CardRarity })}
+                onChange={(e) => updateCard({ ...card, rarity: e.target.value as CardRarity })}
               >
                 {RARITIES.map((r) => (
                   <option key={r} value={r}>
@@ -184,11 +201,11 @@ export default function CardEdit() {
                 value={card.cost === null ? '-' : String(card.cost)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === '-' || v === '') setCard({ ...card, cost: null });
-                  else if (v === 'X' || v === 'x') setCard({ ...card, cost: 'X' });
+                  if (v === '-' || v === '') updateCard({ ...card, cost: null });
+                  else if (v === 'X' || v === 'x') updateCard({ ...card, cost: 'X' });
                   else {
                     const n = Number(v);
-                    if (!Number.isNaN(n)) setCard({ ...card, cost: n });
+                    if (!Number.isNaN(n)) updateCard({ ...card, cost: n });
                   }
                 }}
               />
@@ -198,21 +215,21 @@ export default function CardEdit() {
             <span>効果</span>
             <textarea
               value={card.description}
-              onChange={(e) => setCard({ ...card, description: e.target.value })}
+              onChange={(e) => updateCard({ ...card, description: e.target.value })}
             />
           </label>
           <label className="field">
             <span>強化後の効果</span>
             <textarea
               value={card.upgradedDescription ?? ''}
-              onChange={(e) => setCard({ ...card, upgradedDescription: e.target.value })}
+              onChange={(e) => updateCard({ ...card, upgradedDescription: e.target.value })}
             />
           </label>
           <label className="field">
             <span>メモ</span>
             <textarea
               value={card.notes ?? ''}
-              onChange={(e) => setCard({ ...card, notes: e.target.value })}
+              onChange={(e) => updateCard({ ...card, notes: e.target.value })}
             />
           </label>
         </div>

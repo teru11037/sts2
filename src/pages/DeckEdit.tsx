@@ -6,8 +6,11 @@ import TopBar from '../components/TopBar';
 import CardTile from '../components/CardTile';
 import RelicTile from '../components/RelicTile';
 import TilePicker from '../components/TilePicker';
+import BulkAddModal from '../components/BulkAddModal';
+import NotFound from '../components/NotFound';
 import { CHARACTERS } from '../data/characters';
 import { useImagesMap } from '../hooks/useImagesMap';
+import { useUnsavedGuard, confirmBack } from '../hooks/useUnsavedGuard';
 import type { Card, CharacterId, Deck, Relic } from '../types';
 
 function newDeck(): Deck {
@@ -27,12 +30,29 @@ export default function DeckEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [deck, setDeck] = useState<Deck | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [pick, setPick] = useState<null | 'card' | 'relic'>(null);
+  const [showBulk, setShowBulk] = useState(false);
+
+  useUnsavedGuard(dirty);
 
   useEffect(() => {
-    if (!id) setDeck(newDeck());
-    else db.decks.get(Number(id)).then((d) => setDeck(d ?? null));
+    if (!id) {
+      setDeck(newDeck());
+      setLoaded(true);
+    } else {
+      db.decks.get(Number(id)).then((d) => {
+        setDeck(d ?? null);
+        setLoaded(true);
+      });
+    }
   }, [id]);
+
+  const updateDeck = (next: Deck) => {
+    setDeck(next);
+    setDirty(true);
+  };
 
   const allCards = useLiveQuery(() => db.cards.toArray(), []);
   const cardMap = useMemo(() => {
@@ -50,7 +70,24 @@ export default function DeckEdit() {
 
   const images = useImagesMap();
 
-  if (!deck) return null;
+  const stats = useMemo(() => {
+    const typeCount: Record<string, number> = { Attack: 0, Skill: 0, Power: 0, Status: 0, Curse: 0 };
+    const costCount: Record<string, number> = {};
+    const rar: Record<string, number> = {};
+    const cards = deck?.cards ?? [];
+    for (const dc of cards) {
+      const c = cardMap.get(dc.cardId);
+      if (!c) continue;
+      typeCount[c.type] = (typeCount[c.type] ?? 0) + 1;
+      const key = c.cost === null ? '-' : String(c.cost);
+      costCount[key] = (costCount[key] ?? 0) + 1;
+      rar[c.rarity] = (rar[c.rarity] ?? 0) + 1;
+    }
+    return { typeCount, costCount, rar, total: cards.length };
+  }, [deck?.cards, cardMap]);
+
+  if (!loaded) return null;
+  if (!deck) return <NotFound title="デッキが見つかりません" />;
 
   const save = async () => {
     const now = Date.now();
@@ -59,6 +96,7 @@ export default function DeckEdit() {
     } else {
       await db.decks.add({ ...deck, createdAt: now, updatedAt: now });
     }
+    setDirty(false);
     nav(-1);
   };
 
@@ -66,11 +104,12 @@ export default function DeckEdit() {
     if (!deck.id) return;
     if (!confirm('このデッキを削除しますか？')) return;
     await db.decks.delete(deck.id);
+    setDirty(false);
     nav(-1);
   };
 
   const addCard = (cardId: string) => {
-    setDeck({
+    updateDeck({
       ...deck,
       cards: [...deck.cards, { cardId, upgraded: 0 }]
     });
@@ -79,13 +118,13 @@ export default function DeckEdit() {
   const removeCardAt = (i: number) => {
     const next = deck.cards.slice();
     next.splice(i, 1);
-    setDeck({ ...deck, cards: next });
+    updateDeck({ ...deck, cards: next });
   };
 
   const toggleUpgrade = (i: number) => {
     const next = deck.cards.slice();
     next[i] = { ...next[i], upgraded: next[i].upgraded ? 0 : 1 };
-    setDeck({ ...deck, cards: next });
+    updateDeck({ ...deck, cards: next });
   };
 
   const duplicateAt = (i: number) => {
@@ -93,47 +132,40 @@ export default function DeckEdit() {
     if (!src) return;
     const next = deck.cards.slice();
     next.splice(i + 1, 0, { ...src });
-    setDeck({ ...deck, cards: next });
+    updateDeck({ ...deck, cards: next });
   };
 
   const addRelic = (relicId: string) => {
     if (deck.relics.includes(relicId)) return;
-    setDeck({ ...deck, relics: [...deck.relics, relicId] });
+    updateDeck({ ...deck, relics: [...deck.relics, relicId] });
   };
 
   const removeRelic = (relicId: string) => {
-    setDeck({ ...deck, relics: deck.relics.filter((r) => r !== relicId) });
+    updateDeck({ ...deck, relics: deck.relics.filter((r) => r !== relicId) });
   };
 
-  const stats = useMemo(() => {
-    const typeCount: Record<string, number> = { Attack: 0, Skill: 0, Power: 0, Status: 0, Curse: 0 };
-    const costCount: Record<string, number> = {};
-    const rar: Record<string, number> = {};
-    for (const dc of deck.cards) {
-      const c = cardMap.get(dc.cardId);
-      if (!c) continue;
-      typeCount[c.type] = (typeCount[c.type] ?? 0) + 1;
-      const key = c.cost === null ? '-' : String(c.cost);
-      costCount[key] = (costCount[key] ?? 0) + 1;
-      rar[c.rarity] = (rar[c.rarity] ?? 0) + 1;
-    }
-    return { typeCount, costCount, rar, total: deck.cards.length };
-  }, [deck.cards, cardMap]);
+  const bulkAddCards = (ids: string[]) => {
+    if (!ids.length) return;
+    updateDeck({
+      ...deck,
+      cards: [...deck.cards, ...ids.map((cardId) => ({ cardId, upgraded: 0 }))]
+    });
+  };
 
   return (
     <>
-      <TopBar title={id ? 'デッキ編集' : 'デッキ新規'} back />
+      <TopBar title={id ? 'デッキ編集' : 'デッキ新規'} back onBack={() => confirmBack(dirty)} />
       <div className="content">
         <div className="stack">
           <label className="field">
             <span>デッキ名</span>
-            <input value={deck.name} onChange={(e) => setDeck({ ...deck, name: e.target.value })} />
+            <input value={deck.name} onChange={(e) => updateDeck({ ...deck, name: e.target.value })} />
           </label>
           <label className="field">
             <span>キャラクター</span>
             <select
               value={deck.character}
-              onChange={(e) => setDeck({ ...deck, character: e.target.value as CharacterId })}
+              onChange={(e) => updateDeck({ ...deck, character: e.target.value as CharacterId })}
             >
               {CHARACTERS.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -194,9 +226,12 @@ export default function DeckEdit() {
             );
           })}
         </div>
-        <button className="primary" style={{ marginTop: 12 }} onClick={() => setPick('card')}>
-          ＋ カードを追加
-        </button>
+        <div className="row" style={{ marginTop: 12, gap: 8 }}>
+          <button className="primary grow" onClick={() => setPick('card')}>
+            ＋ カード
+          </button>
+          <button onClick={() => setShowBulk(true)}>📋 名前貼付で一括追加</button>
+        </div>
 
         <div className="section-title">レリック ({deck.relics.length})</div>
         <div
@@ -262,7 +297,7 @@ export default function DeckEdit() {
           <span>メモ</span>
           <textarea
             value={deck.notes ?? ''}
-            onChange={(e) => setDeck({ ...deck, notes: e.target.value })}
+            onChange={(e) => updateDeck({ ...deck, notes: e.target.value })}
           />
         </label>
 
@@ -294,6 +329,17 @@ export default function DeckEdit() {
           onPick={(rid) => addRelic(rid)}
           onClose={() => setPick(null)}
           selectedIds={deck.relics}
+        />
+      )}
+      {showBulk && (
+        <BulkAddModal
+          cards={allCards ?? []}
+          characterFilter={deck.character}
+          onApply={(ids) => {
+            bulkAddCards(ids);
+            setShowBulk(false);
+          }}
+          onClose={() => setShowBulk(false)}
         />
       )}
     </>

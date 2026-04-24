@@ -16,7 +16,6 @@ interface Props {
   onTapNode: (id: string) => void;
   onMoveNode: (id: string, x: number, y: number) => void;
   onTapEdge: (id: string) => void;
-  onUpdateTextNode?: (id: string, text: string) => void;
 }
 
 // 簡易なビジュアルキャンバス。
@@ -34,8 +33,7 @@ export default function ComboCanvas({
   pendingFromId,
   onTapNode,
   onMoveNode,
-  onTapEdge,
-  onUpdateTextNode
+  onTapEdge
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState({ tx: 0, ty: 0, scale: 1 });
@@ -328,13 +326,8 @@ export default function ComboCanvas({
                   wordBreak: 'break-word',
                   textAlign: 'center'
                 }}
-                onDoubleClick={() => {
-                  if (!onUpdateTextNode) return;
-                  const next = prompt('テキスト', n.text ?? '');
-                  if (next !== null) onUpdateTextNode(n.id, next);
-                }}
               >
-                {n.text || '(ダブルタップで編集)'}
+                {n.text || '(タップして選択 → 下で編集)'}
               </div>
             </div>
           );

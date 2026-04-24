@@ -74,18 +74,57 @@ export async function exportAll(): Promise<string> {
   );
 }
 
-export async function importAll(json: string): Promise<void> {
-  const data = JSON.parse(json);
+export interface ImportSummary {
+  cards: number;
+  relics: number;
+  decks: number;
+  runs: number;
+  memos: number;
+  images: number;
+}
+
+export async function importAll(json: string): Promise<ImportSummary> {
+  let data: unknown;
+  try {
+    data = JSON.parse(json);
+  } catch {
+    throw new Error('JSON の形式が不正です。ファイルを確認してください。');
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('インポート対象のデータが見つかりません。');
+  }
+  const d = data as Record<string, unknown>;
+  const summary: ImportSummary = { cards: 0, relics: 0, decks: 0, runs: 0, memos: 0, images: 0 };
+
   await db.transaction(
     'rw',
     [db.cards, db.relics, db.decks, db.runs, db.memos, db.images],
     async () => {
-      if (Array.isArray(data.cards)) await db.cards.bulkPut(data.cards);
-      if (Array.isArray(data.relics)) await db.relics.bulkPut(data.relics);
-      if (Array.isArray(data.decks)) await db.decks.bulkPut(data.decks);
-      if (Array.isArray(data.runs)) await db.runs.bulkPut(data.runs);
-      if (Array.isArray(data.memos)) await db.memos.bulkPut(data.memos);
-      if (Array.isArray(data.images)) await db.images.bulkPut(data.images);
+      if (Array.isArray(d.cards)) {
+        await db.cards.bulkPut(d.cards);
+        summary.cards = d.cards.length;
+      }
+      if (Array.isArray(d.relics)) {
+        await db.relics.bulkPut(d.relics);
+        summary.relics = d.relics.length;
+      }
+      if (Array.isArray(d.decks)) {
+        await db.decks.bulkPut(d.decks);
+        summary.decks = d.decks.length;
+      }
+      if (Array.isArray(d.runs)) {
+        await db.runs.bulkPut(d.runs);
+        summary.runs = d.runs.length;
+      }
+      if (Array.isArray(d.memos)) {
+        await db.memos.bulkPut(d.memos);
+        summary.memos = d.memos.length;
+      }
+      if (Array.isArray(d.images)) {
+        await db.images.bulkPut(d.images);
+        summary.images = d.images.length;
+      }
     }
   );
+  return summary;
 }
