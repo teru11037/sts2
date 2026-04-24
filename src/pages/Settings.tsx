@@ -1,9 +1,24 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import TopBar from '../components/TopBar';
 import { db, exportAll, importAll } from '../db';
+import { garbageCollectImages } from '../lib/images';
 
 export default function Settings() {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [gcMsg, setGcMsg] = useState<string | null>(null);
+
+  const imageStats = useLiveQuery(async () => {
+    const all = await db.images.toArray();
+    const bytes = all.reduce((acc, i) => acc + i.dataUrl.length, 0);
+    return { count: all.length, bytes };
+  });
+
+  const runGc = async () => {
+    const removed = await garbageCollectImages();
+    setGcMsg(`${removed} 件の孤立画像を削除しました`);
+    setTimeout(() => setGcMsg(null), 3000);
+  };
 
   const doExport = async () => {
     const json = await exportAll();
@@ -54,6 +69,20 @@ export default function Settings() {
           <button className="danger" onClick={resetAll}>
             🧹 全データリセット
           </button>
+        </div>
+
+        <div className="section-title">画像ストレージ</div>
+        <div className="card card-compact">
+          <div className="row-between">
+            <div>
+              <div>保存枚数: <strong>{imageStats?.count ?? '-'}</strong></div>
+              <div className="dim" style={{ fontSize: 12 }}>
+                概算サイズ: {imageStats ? Math.round(imageStats.bytes / 1024) + 'KB' : '-'}
+              </div>
+            </div>
+            <button onClick={runGc}>🧹 孤立画像を掃除</button>
+          </div>
+          {gcMsg && <div className="dim" style={{ marginTop: 8, fontSize: 12 }}>{gcMsg}</div>}
         </div>
 
         <div className="section-title">アプリについて</div>

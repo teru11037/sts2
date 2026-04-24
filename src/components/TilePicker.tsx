@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import type { Card, CardType, CharacterId, Relic } from '../types';
 import { CHARACTERS } from '../data/characters';
+import { useImagesMap } from '../hooks/useImagesMap';
 import CardTile from './CardTile';
 import RelicTile from './RelicTile';
 
@@ -42,6 +43,8 @@ export default function TilePicker({
     if (mode !== 'relic') return [] as Relic[];
     return db.relics.toArray();
   }, [mode]);
+
+  const images = useImagesMap();
 
   const filteredCards = useMemo(() => {
     const list = cards ?? [];
@@ -141,6 +144,7 @@ export default function TilePicker({
                 key={c.id}
                 card={c}
                 size="sm"
+                imageUrl={c.imageId ? images.get(c.imageId) : undefined}
                 selected={selectedIds.includes(c.id)}
                 onClick={() => {
                   onPick(c.id);
@@ -154,6 +158,7 @@ export default function TilePicker({
                 key={r.id}
                 relic={r}
                 size="sm"
+                imageUrl={r.imageId ? images.get(r.imageId) : undefined}
                 selected={selectedIds.includes(r.id)}
                 onClick={() => {
                   onPick(r.id);

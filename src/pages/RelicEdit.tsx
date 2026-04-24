@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../db';
 import TopBar from '../components/TopBar';
 import RelicTile from '../components/RelicTile';
 import { CHARACTERS } from '../data/characters';
+import { deleteImage, readAndResize, saveImage } from '../lib/images';
+import { useSingleImage } from '../hooks/useImagesMap';
 import type { CharacterId, Relic, RelicRarity } from '../types';
 
 const RARITIES: RelicRarity[] = ['Starter', 'Common', 'Uncommon', 'Rare', 'Boss', 'Shop', 'Event'];
@@ -23,11 +25,39 @@ export default function RelicEdit() {
   const { id } = useParams();
   const nav = useNavigate();
   const [relic, setRelic] = useState<Relic | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!id) setRelic(newRelic());
     else db.relics.get(id).then((r) => setRelic(r ?? null));
   }, [id]);
+
+  const imageUrl = useSingleImage(relic?.imageId);
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f || !relic) return;
+    setUploading(true);
+    try {
+      const { dataUrl, width, height } = await readAndResize(f, { maxEdge: 256, quality: 0.85 });
+      const imageId = relic.imageId ?? 'img_' + Math.random().toString(36).slice(2, 10);
+      await saveImage(imageId, dataUrl, width, height);
+      setRelic({ ...relic, imageId });
+    } catch (err) {
+      alert((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearImage = async () => {
+    if (!relic?.imageId) return;
+    const prev = relic.imageId;
+    setRelic({ ...relic, imageId: undefined });
+    await deleteImage(prev);
+  };
 
   if (!relic) return null;
 
@@ -51,8 +81,28 @@ export default function RelicEdit() {
     <>
       <TopBar title={id ? 'レリック編集' : 'レリック新規'} back />
       <div className="content">
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <RelicTile relic={relic} size="lg" />
+        <div className="stack" style={{ alignItems: 'center', marginBottom: 12 }}>
+          <RelicTile relic={relic} size="lg" imageUrl={imageUrl} />
+          <div className="row" style={{ gap: 8 }}>
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? '処理中…' : relic.imageId ? '🖼️ 画像を差し替え' : '📷 画像をアップロード'}
+            </button>
+            {relic.imageId && (
+              <button className="danger" onClick={clearImage}>
+                画像を外す
+              </button>
+            )}
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={onFileChange}
+          />
+          <div className="dim" style={{ fontSize: 11 }}>
+            256px JPEG に自動圧縮
+          </div>
         </div>
         <div className="stack">
           <label className="field">

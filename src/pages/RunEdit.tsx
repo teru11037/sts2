@@ -7,6 +7,7 @@ import CardTile from '../components/CardTile';
 import RelicTile from '../components/RelicTile';
 import TilePicker from '../components/TilePicker';
 import { CHARACTERS } from '../data/characters';
+import { useImagesMap } from '../hooks/useImagesMap';
 import type { Card, CharacterId, Relic, Run, RunEvent, RunResult } from '../types';
 
 function newRun(): Run {
@@ -62,6 +63,7 @@ export default function RunEdit() {
     (allRelics ?? []).forEach((r) => m.set(r.id, r));
     return m;
   }, [allRelics]);
+  const images = useImagesMap();
 
   if (!run) return null;
 
@@ -276,7 +278,13 @@ export default function RunEdit() {
             if (!c) return null;
             return (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <CardTile card={c} size="sm" upgraded={!!dc.upgraded} onClick={() => toggleUpgrade(i)} />
+                <CardTile
+                  card={c}
+                  size="sm"
+                  upgraded={!!dc.upgraded}
+                  imageUrl={c.imageId ? images.get(c.imageId) : undefined}
+                  onClick={() => toggleUpgrade(i)}
+                />
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button
                     onClick={() => toggleUpgrade(i)}
@@ -307,7 +315,12 @@ export default function RunEdit() {
             if (!r) return null;
             return (
               <div key={rid} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <RelicTile relic={r} size="sm" onClick={() => removeRelic(rid)} />
+                <RelicTile
+                  relic={r}
+                  size="sm"
+                  imageUrl={r.imageId ? images.get(r.imageId) : undefined}
+                  onClick={() => removeRelic(rid)}
+                />
                 <div style={{ fontSize: 9, color: 'var(--fg-muted)', textAlign: 'center', maxWidth: 64 }}>
                   {r.nameJa ?? r.name}
                 </div>

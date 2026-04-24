@@ -6,6 +6,7 @@ import TopBar from '../components/TopBar';
 import ComboCanvas from '../components/ComboCanvas';
 import TilePicker from '../components/TilePicker';
 import { CHARACTERS } from '../data/characters';
+import { useImagesMap } from '../hooks/useImagesMap';
 import type { Card, CharacterId, ComboEdge, ComboMemo, ComboNode, Relic } from '../types';
 
 function newMemo(): ComboMemo {
@@ -53,6 +54,7 @@ export default function MemoEdit() {
     (allRelics ?? []).forEach((r) => m.set(r.id, r));
     return m;
   }, [allRelics]);
+  const images = useImagesMap();
 
   if (!memo) return null;
 
@@ -211,6 +213,7 @@ export default function MemoEdit() {
           edges={memo.edges}
           cardMap={cardMap}
           relicMap={relicMap}
+          images={images}
           connectMode={connectMode}
           selectedNodeId={selectedNodeId}
           pendingFromId={pendingFromId}

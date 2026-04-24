@@ -6,6 +6,7 @@ import TopBar from '../components/TopBar';
 import CardTile from '../components/CardTile';
 import RelicTile from '../components/RelicTile';
 import { CHARACTERS } from '../data/characters';
+import { useImagesMap } from '../hooks/useImagesMap';
 import type { CardType, CharacterId } from '../types';
 
 type Tab = 'cards' | 'relics';
@@ -19,6 +20,7 @@ export default function Cards() {
 
   const allCards = useLiveQuery(() => db.cards.toArray(), []);
   const allRelics = useLiveQuery(() => db.relics.toArray(), []);
+  const images = useImagesMap();
 
   const cards = useMemo(() => {
     const list = allCards ?? [];
@@ -120,7 +122,7 @@ export default function Cards() {
           >
             {cards.map((c) => (
               <Link key={c.id} to={`/cards/${c.id}`} style={{ textDecoration: 'none' }}>
-                <CardTile card={c} size="md" />
+                <CardTile card={c} size="md" imageUrl={c.imageId ? images.get(c.imageId) : undefined} />
               </Link>
             ))}
           </div>
@@ -136,7 +138,7 @@ export default function Cards() {
             {relics.map((r) => (
               <Link key={r.id} to={`/relics/${r.id}`} style={{ textDecoration: 'none' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <RelicTile relic={r} size="md" />
+                  <RelicTile relic={r} size="md" imageUrl={r.imageId ? images.get(r.imageId) : undefined} />
                   <div style={{ fontSize: 10, color: 'var(--fg-muted)', textAlign: 'center', maxWidth: 76 }}>
                     {r.nameJa ?? r.name}
                   </div>

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Card, Relic, Deck, Run, ComboMemo } from '../types';
+import type { Card, ComboMemo, Deck, Relic, Run, StoredImage } from '../types';
 import { SEED_CARDS } from '../data/cards';
 import { SEED_RELICS } from '../data/relics';
 
@@ -9,6 +9,7 @@ export class Sts2Db extends Dexie {
   decks!: Table<Deck, number>;
   runs!: Table<Run, number>;
   memos!: Table<ComboMemo, number>;
+  images!: Table<StoredImage, string>;
   meta!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
@@ -20,6 +21,9 @@ export class Sts2Db extends Dexie {
       runs: '++id, character, result, startedAt, endedAt',
       memos: '++id, title, starred, updatedAt',
       meta: 'key'
+    });
+    this.version(2).stores({
+      images: 'id, updatedAt'
     });
   }
 }
@@ -55,15 +59,16 @@ export async function ensureSeeded(): Promise<void> {
 }
 
 export async function exportAll(): Promise<string> {
-  const [cards, relics, decks, runs, memos] = await Promise.all([
+  const [cards, relics, decks, runs, memos, images] = await Promise.all([
     db.cards.toArray(),
     db.relics.toArray(),
     db.decks.toArray(),
     db.runs.toArray(),
-    db.memos.toArray()
+    db.memos.toArray(),
+    db.images.toArray()
   ]);
   return JSON.stringify(
-    { version: 1, exportedAt: Date.now(), cards, relics, decks, runs, memos },
+    { version: 2, exportedAt: Date.now(), cards, relics, decks, runs, memos, images },
     null,
     2
   );
@@ -71,11 +76,16 @@ export async function exportAll(): Promise<string> {
 
 export async function importAll(json: string): Promise<void> {
   const data = JSON.parse(json);
-  await db.transaction('rw', [db.cards, db.relics, db.decks, db.runs, db.memos], async () => {
-    if (Array.isArray(data.cards)) await db.cards.bulkPut(data.cards);
-    if (Array.isArray(data.relics)) await db.relics.bulkPut(data.relics);
-    if (Array.isArray(data.decks)) await db.decks.bulkPut(data.decks);
-    if (Array.isArray(data.runs)) await db.runs.bulkPut(data.runs);
-    if (Array.isArray(data.memos)) await db.memos.bulkPut(data.memos);
-  });
+  await db.transaction(
+    'rw',
+    [db.cards, db.relics, db.decks, db.runs, db.memos, db.images],
+    async () => {
+      if (Array.isArray(data.cards)) await db.cards.bulkPut(data.cards);
+      if (Array.isArray(data.relics)) await db.relics.bulkPut(data.relics);
+      if (Array.isArray(data.decks)) await db.decks.bulkPut(data.decks);
+      if (Array.isArray(data.runs)) await db.runs.bulkPut(data.runs);
+      if (Array.isArray(data.memos)) await db.memos.bulkPut(data.memos);
+      if (Array.isArray(data.images)) await db.images.bulkPut(data.images);
+    }
+  );
 }

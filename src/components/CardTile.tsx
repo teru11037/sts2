@@ -8,6 +8,7 @@ interface Props {
   onClick?: () => void;
   selected?: boolean;
   badge?: string;
+  imageUrl?: string;
 }
 
 const SIZE_MAP: Record<string, { w: number; h: number; name: number; cost: number }> = {
@@ -16,7 +17,7 @@ const SIZE_MAP: Record<string, { w: number; h: number; name: number; cost: numbe
   lg: { w: 140, h: 186, name: 13, cost: 16 }
 };
 
-export default function CardTile({ card, upgraded, size = 'md', onClick, selected, badge }: Props) {
+export default function CardTile({ card, upgraded, size = 'md', onClick, selected, badge, imageUrl }: Props) {
   const s = SIZE_MAP[size];
   const charColor = CHARACTER_MAP[card.character]?.color ?? '#555';
   const title = (card.nameJa ?? card.name) + (upgraded ? '+' : '');
@@ -39,7 +40,9 @@ export default function CardTile({ card, upgraded, size = 'md', onClick, selecte
         height: s.h,
         padding: 0,
         minHeight: 0,
-        background: typeColor[card.type] ?? '#333',
+        background: imageUrl
+          ? `url("${imageUrl}") center/cover no-repeat, #1a1625`
+          : typeColor[card.type] ?? '#333',
         border: selected ? '2px solid #fff' : `2px solid ${charColor}`,
         boxShadow: selected ? '0 0 0 3px rgba(194,137,255,0.8)' : 'none',
         borderRadius: 10,

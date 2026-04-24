@@ -6,6 +6,7 @@ interface Props {
   size?: 'sm' | 'md' | 'lg';
   onClick?: () => void;
   selected?: boolean;
+  imageUrl?: string;
 }
 
 const SIZE_MAP: Record<string, number> = { sm: 56, md: 72, lg: 96 };
@@ -20,7 +21,7 @@ const RARITY_COLOR: Record<string, string> = {
   Event: '#a8692e'
 };
 
-export default function RelicTile({ relic, size = 'md', onClick, selected }: Props) {
+export default function RelicTile({ relic, size = 'md', onClick, selected, imageUrl }: Props) {
   const w = SIZE_MAP[size];
   const charColor = relic.character ? CHARACTER_MAP[relic.character]?.color : undefined;
   const bg = RARITY_COLOR[relic.rarity] ?? '#444';
@@ -38,7 +39,9 @@ export default function RelicTile({ relic, size = 'md', onClick, selected }: Pro
         height: w,
         padding: 0,
         minHeight: 0,
-        background: `radial-gradient(circle at 30% 25%, ${bg}, #1a1625 80%)`,
+        background: imageUrl
+          ? `url("${imageUrl}") center/cover no-repeat, #1a1625`
+          : `radial-gradient(circle at 30% 25%, ${bg}, #1a1625 80%)`,
         border: selected ? '2px solid #fff' : `2px solid ${charColor ?? bg}`,
         boxShadow: selected ? '0 0 0 3px rgba(194,137,255,0.8)' : 'none',
         borderRadius: '50%',
@@ -55,7 +58,7 @@ export default function RelicTile({ relic, size = 'md', onClick, selected }: Pro
       }}
       title={title}
     >
-      {initial}
+      {imageUrl ? '' : initial}
     </button>
   );
 }

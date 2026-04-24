@@ -9,6 +9,7 @@ interface Props {
   edges: ComboEdge[];
   cardMap: Map<string, Card>;
   relicMap: Map<string, Relic>;
+  images: Map<string, string>;
   connectMode: boolean;
   selectedNodeId: string | null;
   pendingFromId: string | null;
@@ -27,6 +28,7 @@ export default function ComboCanvas({
   edges,
   cardMap,
   relicMap,
+  images,
   connectMode,
   selectedNodeId,
   pendingFromId,
@@ -279,7 +281,12 @@ export default function ComboCanvas({
                 onPointerDown={(e) => handlePointerDown(e, n.id)}
                 onPointerUp={(e) => handlePointerUp(e, n.id)}
               >
-                <CardTile card={c} size="sm" selected={isSelected} />
+                <CardTile
+                  card={c}
+                  size="sm"
+                  selected={isSelected}
+                  imageUrl={c.imageId ? images.get(c.imageId) : undefined}
+                />
               </div>
             );
           }
@@ -293,7 +300,12 @@ export default function ComboCanvas({
                 onPointerDown={(e) => handlePointerDown(e, n.id)}
                 onPointerUp={(e) => handlePointerUp(e, n.id)}
               >
-                <RelicTile relic={r} size="sm" selected={isSelected} />
+                <RelicTile
+                  relic={r}
+                  size="sm"
+                  selected={isSelected}
+                  imageUrl={r.imageId ? images.get(r.imageId) : undefined}
+                />
               </div>
             );
           }

@@ -7,6 +7,7 @@ import CardTile from '../components/CardTile';
 import RelicTile from '../components/RelicTile';
 import TilePicker from '../components/TilePicker';
 import { CHARACTERS } from '../data/characters';
+import { useImagesMap } from '../hooks/useImagesMap';
 import type { Card, CharacterId, Deck, Relic } from '../types';
 
 function newDeck(): Deck {
@@ -46,6 +47,8 @@ export default function DeckEdit() {
     (allRelics ?? []).forEach((r) => m.set(r.id, r));
     return m;
   }, [allRelics]);
+
+  const images = useImagesMap();
 
   if (!deck) return null;
 
@@ -151,6 +154,7 @@ export default function DeckEdit() {
                   card={c}
                   size="sm"
                   upgraded={!!dc.upgraded}
+                  imageUrl={c.imageId ? images.get(c.imageId) : undefined}
                   onClick={() => toggleUpgrade(i)}
                 />
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -190,7 +194,12 @@ export default function DeckEdit() {
             if (!r) return null;
             return (
               <div key={rid} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                <RelicTile relic={r} size="sm" onClick={() => removeRelic(rid)} />
+                <RelicTile
+                  relic={r}
+                  size="sm"
+                  imageUrl={r.imageId ? images.get(r.imageId) : undefined}
+                  onClick={() => removeRelic(rid)}
+                />
                 <div style={{ fontSize: 9, color: 'var(--fg-muted)', textAlign: 'center', maxWidth: 64 }}>
                   {r.nameJa ?? r.name}
                 </div>

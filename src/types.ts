@@ -42,6 +42,7 @@ export interface Card {
   isCustom?: 0 | 1;
   gameVersion?: string;
   notes?: string;
+  imageId?: string;
 }
 
 export interface Relic {
@@ -55,6 +56,15 @@ export interface Relic {
   isCustom?: 0 | 1;
   gameVersion?: string;
   notes?: string;
+  imageId?: string;
+}
+
+export interface StoredImage {
+  id: string;
+  dataUrl: string;
+  width: number;
+  height: number;
+  updatedAt: number;
 }
 
 export interface DeckCard {
