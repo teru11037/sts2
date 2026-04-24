@@ -1,5 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import BottomNav from './components/BottomNav';
+import PageTransition from './components/PageTransition';
 import Home from './pages/Home';
 import Cards from './pages/Cards';
 import CardEdit from './pages/CardEdit';
@@ -13,29 +15,38 @@ import Memos from './pages/Memos';
 import MemoEdit from './pages/MemoEdit';
 import Settings from './pages/Settings';
 
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        <Route path="/cards" element={<PageTransition><Cards /></PageTransition>} />
+        <Route path="/cards/new" element={<PageTransition><CardEdit /></PageTransition>} />
+        <Route path="/cards/:id" element={<PageTransition><CardEdit /></PageTransition>} />
+        <Route path="/relics" element={<PageTransition><Relics /></PageTransition>} />
+        <Route path="/relics/new" element={<PageTransition><RelicEdit /></PageTransition>} />
+        <Route path="/relics/:id" element={<PageTransition><RelicEdit /></PageTransition>} />
+        <Route path="/decks" element={<PageTransition><Decks /></PageTransition>} />
+        <Route path="/decks/new" element={<PageTransition><DeckEdit /></PageTransition>} />
+        <Route path="/decks/:id" element={<PageTransition><DeckEdit /></PageTransition>} />
+        <Route path="/runs" element={<PageTransition><Runs /></PageTransition>} />
+        <Route path="/runs/new" element={<PageTransition><RunEdit /></PageTransition>} />
+        <Route path="/runs/:id" element={<PageTransition><RunEdit /></PageTransition>} />
+        <Route path="/memos" element={<PageTransition><Memos /></PageTransition>} />
+        <Route path="/memos/new" element={<PageTransition><MemoEdit /></PageTransition>} />
+        <Route path="/memos/:id" element={<PageTransition><MemoEdit /></PageTransition>} />
+        <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
   return (
     <div className="app">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/cards" element={<Cards />} />
-        <Route path="/cards/new" element={<CardEdit />} />
-        <Route path="/cards/:id" element={<CardEdit />} />
-        <Route path="/relics" element={<Relics />} />
-        <Route path="/relics/new" element={<RelicEdit />} />
-        <Route path="/relics/:id" element={<RelicEdit />} />
-        <Route path="/decks" element={<Decks />} />
-        <Route path="/decks/new" element={<DeckEdit />} />
-        <Route path="/decks/:id" element={<DeckEdit />} />
-        <Route path="/runs" element={<Runs />} />
-        <Route path="/runs/new" element={<RunEdit />} />
-        <Route path="/runs/:id" element={<RunEdit />} />
-        <Route path="/memos" element={<Memos />} />
-        <Route path="/memos/new" element={<MemoEdit />} />
-        <Route path="/memos/:id" element={<MemoEdit />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <AnimatedRoutes />
       <BottomNav />
     </div>
   );
