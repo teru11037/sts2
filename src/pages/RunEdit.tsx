@@ -401,31 +401,68 @@ export default function RunEdit() {
           </button>
         </div>
 
-        <div className="section-title">履歴</div>
+        <div className="section-title">履歴 (フロア順)</div>
         <div className="card card-compact">
           {run.events.length === 0 && <div className="dim">まだイベントがありません。</div>}
-          {run.events
-            .slice()
-            .reverse()
-            .map((ev) => {
-              const subject = ev.subjectId
-                ? cardMap.get(ev.subjectId)?.nameJa ||
-                  cardMap.get(ev.subjectId)?.name ||
-                  relicMap.get(ev.subjectId)?.nameJa ||
-                  relicMap.get(ev.subjectId)?.name ||
-                  ev.subjectId
-                : '';
+          {(() => {
+            // フロアごとにグループ化 (undefined は 'その他' = key -1)
+            const groups = new Map<number, typeof run.events>();
+            for (const ev of run.events) {
+              const k = typeof ev.floor === 'number' ? ev.floor : -1;
+              const arr = groups.get(k) ?? [];
+              arr.push(ev);
+              groups.set(k, arr);
+            }
+            const sortedKeys = Array.from(groups.keys()).sort((a, b) => b - a);
+            return sortedKeys.map((floor) => {
+              const evs = groups.get(floor)!;
+              const sortedEvs = evs.slice().sort((a, b) => b.at - a.at);
               return (
-                <div key={ev.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 13 }}>
-                    {EVENT_KIND_LABEL[ev.kind]} {subject} {ev.detail && `— ${ev.detail}`}
+                <div key={floor} style={{ marginBottom: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                      padding: '6px 0 2px',
+                      borderBottom: '1px solid var(--border-soft)',
+                      marginBottom: 4,
+                      letterSpacing: 0.03
+                    }}
+                  >
+                    {floor === -1 ? 'フロア未設定' : `F${floor}`} ({evs.length})
                   </div>
-                  <div className="dim" style={{ fontSize: 11 }}>
-                    F{ev.floor ?? '-'} · {new Date(ev.at).toLocaleTimeString('ja-JP')}
-                  </div>
+                  {sortedEvs.map((ev) => {
+                    const subject = ev.subjectId
+                      ? cardMap.get(ev.subjectId)?.nameJa ||
+                        cardMap.get(ev.subjectId)?.name ||
+                        relicMap.get(ev.subjectId)?.nameJa ||
+                        relicMap.get(ev.subjectId)?.name ||
+                        ev.subjectId
+                      : '';
+                    return (
+                      <div
+                        key={ev.id}
+                        style={{
+                          padding: '4px 0 4px 8px',
+                          fontSize: 13,
+                          borderLeft: '2px solid var(--border-soft)',
+                          marginLeft: 4
+                        }}
+                      >
+                        <div>
+                          {EVENT_KIND_LABEL[ev.kind]} {subject} {ev.detail && `— ${ev.detail}`}
+                        </div>
+                        <div className="dim" style={{ fontSize: 10 }}>
+                          {new Date(ev.at).toLocaleTimeString('ja-JP')}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
-            })}
+            });
+          })()}
         </div>
 
         <label className="field" style={{ marginTop: 12 }}>
