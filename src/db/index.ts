@@ -30,7 +30,7 @@ export class Sts2Db extends Dexie {
 
 export const db = new Sts2Db();
 
-const SEED_VERSION = 1;
+const SEED_VERSION = 2;
 
 export async function ensureSeeded(): Promise<void> {
   const rec = await db.meta.get('seedVersion');

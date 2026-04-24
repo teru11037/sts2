@@ -1,9 +1,10 @@
 import type { Card } from '../types';
+import { SEED_CARDS_SILENT } from './cards_silent';
 
 // 初期シードデータ。スレスパ2 Early Access の公開情報を元にしたサンプル。
-// 網羅はしていない。アプリ内の「カード追加」機能から拡張可能。
-export const SEED_CARDS: Card[] = [
-  // --- 共通スタータ ---
+// Silent は専用ファイル (cards_silent.ts) から読み込む。他キャラはサンプルのみ。
+const SEED_CARDS_OTHER: Card[] = [
+  // --- 共通スタータ (Silent 以外) ---
   {
     id: 'strike_r',
     name: 'Strike',
@@ -38,54 +39,6 @@ export const SEED_CARDS: Card[] = [
     cost: 2,
     description: 'Deal 8 damage. Apply 2 Vulnerable.',
     upgradedDescription: 'Deal 10 damage. Apply 3 Vulnerable.',
-    gameVersion: 'EA'
-  },
-  {
-    id: 'strike_g',
-    name: 'Strike',
-    nameJa: 'ストライク (緑)',
-    character: 'silent',
-    type: 'Attack',
-    rarity: 'Starter',
-    cost: 1,
-    description: 'Deal 6 damage.',
-    upgradedDescription: 'Deal 9 damage.',
-    gameVersion: 'EA'
-  },
-  {
-    id: 'defend_g',
-    name: 'Defend',
-    nameJa: 'ディフェンド (緑)',
-    character: 'silent',
-    type: 'Skill',
-    rarity: 'Starter',
-    cost: 1,
-    description: 'Gain 5 Block.',
-    upgradedDescription: 'Gain 8 Block.',
-    gameVersion: 'EA'
-  },
-  {
-    id: 'survivor',
-    name: 'Survivor',
-    nameJa: 'サバイバー',
-    character: 'silent',
-    type: 'Skill',
-    rarity: 'Starter',
-    cost: 1,
-    description: 'Gain 8 Block. Discard 1 card.',
-    upgradedDescription: 'Gain 11 Block. Discard 1 card.',
-    gameVersion: 'EA'
-  },
-  {
-    id: 'neutralize',
-    name: 'Neutralize',
-    nameJa: 'ニュートラライズ',
-    character: 'silent',
-    type: 'Attack',
-    rarity: 'Starter',
-    cost: 0,
-    description: 'Deal 3 damage. Apply 1 Weak.',
-    upgradedDescription: 'Deal 4 damage. Apply 2 Weak.',
     gameVersion: 'EA'
   },
   {
@@ -230,5 +183,34 @@ export const SEED_CARDS: Card[] = [
     cost: 1,
     description: 'Exhaust.',
     gameVersion: 'EA'
+  },
+  // --- Silent トークン (ナイフ等) ---
+  {
+    id: 'knife_token',
+    name: 'Knife',
+    nameJa: 'ナイフ',
+    character: 'silent',
+    type: 'Attack',
+    rarity: 'Special',
+    cost: 0,
+    description: 'トークン。デッキにない。精度上昇・ファントムブレード等で威力が変化する。',
+    tags: ['ナイフ', 'トークン'],
+    notes: 'ナイフ系シナジーで参照されるトークン',
+    gameVersion: 'EA'
+  },
+  {
+    id: 'inked_knife_token',
+    name: 'Inked Knife',
+    nameJa: '墨塗りのナイフ',
+    character: 'silent',
+    type: 'Attack',
+    rarity: 'Special',
+    cost: 0,
+    description: 'トークン。墨の刃から生成される。',
+    tags: ['ナイフ', 'トークン'],
+    notes: '墨の刃で生成',
+    gameVersion: 'EA'
   }
 ];
+
+export const SEED_CARDS: Card[] = [...SEED_CARDS_OTHER, ...SEED_CARDS_SILENT];
